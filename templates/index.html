@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>iPad Photo Album</title>
+    <style>
+        body { margin:0; background:#000; color:#fff; font-family:sans-serif; text-align:center; }
+        img, video { max-width:100%; max-height:100vh; margin:auto; display:block; }
+        .caption { position:fixed; bottom:0; width:100%; background:rgba(0,0,0,0.5); padding:5px; font-size:14px; }
+    </style>
+</head>
+<body>
+    <img id="photo" src="" alt="photo" style="display:none;" />
+    <video id="video" src="" controls autoplay muted playsinline style="display:none;"></video>
+    <div class="caption" id="caption"></div>
+    <script>
+        // Simple slideshow compatible with iOS 9 Safari – supports images and MP4/WebM/OGV videos
+        var media = {{ media|tojson|safe }}; // list of filenames from Flask
+        var index = 0;
+        var displayTime = 5000; // 5 seconds per image (videos rely on their own duration)
+        var imgEl = document.getElementById('photo');
+        var vidEl = document.getElementById('video');
+        var capEl = document.getElementById('caption');
+
+        function isVideoFile(name) {
+            var ext = name.split('.').pop().toLowerCase();
+            return ['mp4','webm','ogv'].indexOf(ext) !== -1;
+        }
+
+        function showNext() {
+            var filename = media[index];
+            var video = isVideoFile(filename);
+            if (video) {
+                imgEl.style.display = 'none';
+                vidEl.style.display = 'block';
+                vidEl.src = '/photos/' + encodeURIComponent(filename);
+                // Safari iOS9 may need a brief pause before calling play()
+                setTimeout(function () { vidEl.play(); }, 0);
+            } else {
+                vidEl.style.display = 'none';
+                imgEl.style.display = 'block';
+                imgEl.src = '/photos/' + encodeURIComponent(filename);
+            }
+            capEl.textContent = filename;
+            index = (index + 1) % media.length;
+        }
+
+        if (media.length > 0) {
+            showNext();
+            // Advance images every "displayTime" ms. Videos advance when they end.
+            setInterval(function () {
+                if (!vidEl.style.display || vidEl.style.display === 'none') {
+                    // currently showing an image – advance after displayTime
+                    showNext();
+                }
+            }, displayTime);
+            // When a video finishes, move to the next item.
+            vidEl.addEventListener('ended', function () {
+                // Reset video element for next use
+                vidEl.currentTime = 0;
+                showNext();
+            });
+        } else {
+            imgEl.alt = 'No media found';
+        }
+    </script>
+</body>
+</html>
